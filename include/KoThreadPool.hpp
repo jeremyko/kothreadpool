@@ -30,47 +30,73 @@
 #include <functional>
 #include <vector>
 #include <queue>
+#include <condition_variable>
+#include <chrono>
 
-#include "CondVar.hpp"
+typedef enum __ENUM_COND_VAR_RSLT__
+{
+    COND_CAR_RSLT_TIMEOUT = 0,
+    COND_CAR_RSLT_SIGNALED
+} ENUM_COND_VAR_RSLT ;
 
 ///////////////////////////////////////////////////////////////////////////////
-template <typename T>
-class TaskQueue 
+class CondVar
 {
     public:
-        void PushQueue(T const & value) 
+        CondVar()  = default;
+        ~CondVar() = default;
+
+        void NotifyOne()
         {
-            std::unique_lock<std::mutex> lock(mutex_);
-            task_queue_.push(value);
+            std::unique_lock<std::mutex> lock (cond_var_lock_);
+            is_notified_ = true;
+            cond_var_.notify_one();
         }
 
-        bool  PopQueue() 
+        void NotifyAll()
         {
-            std::unique_lock<std::mutex> lock(mutex_);
-            if (task_queue_.empty())
+            std::unique_lock<std::mutex> lock (cond_var_lock_);
+            is_notified_ = true;
+            cond_var_.notify_all();
+        }
+
+        void WaitForSignal()
+        {
+            std::unique_lock<std::mutex> lock (cond_var_lock_);
+            while (!is_notified_) 
             {
-                return false;
+                cond_var_.wait(lock );
+            }    
+            is_notified_=false; 
+        }
+
+        ENUM_COND_VAR_RSLT WaitForSignalTimeout(int timeout_secs)
+        {
+            std::unique_lock<std::mutex> lock (cond_var_lock_);
+            std::cv_status ret = std::cv_status::no_timeout;
+
+            auto duration_sec = std::chrono::seconds(timeout_secs);
+
+            while(!is_notified_ && std::cv_status::timeout !=ret)
+            { 
+                ret=cond_var_.wait_for(lock, duration_sec);
             }
 
-            std::function<void()> func = task_queue_.front();
-            task_queue_.pop();
-
-            func();
-
-            return true;
+            is_notified_=false;
+            if(std::cv_status::timeout ==ret)
+            {
+                return COND_CAR_RSLT_TIMEOUT;
+            }
+            return COND_CAR_RSLT_SIGNALED;
         }
 
-        bool IsEmpty() 
-        {
-            std::unique_lock<std::mutex> lock(mutex_);
-            return task_queue_.empty();
-        }
 
-    private:
-        std::queue<T> task_queue_ ;
-        std::mutex    mutex_      ;
+    private:    
+        std::mutex              cond_var_lock_ ;
+        std::condition_variable cond_var_ ;
+        bool is_notified_ {false};
+
 };
-
 
 ///////////////////////////////////////////////////////////////////////////////
 class KoThreadPool 
@@ -114,7 +140,7 @@ class KoThreadPool
 
         void AssignTask( std::function<void()> & func ) 
         {
-            task_queue_.PushQueue(func);
+            PushQueue(func);
             cond_var_.NotifyOne();
         }
 
@@ -156,7 +182,8 @@ class KoThreadPool
 
     private:
 
-        TaskQueue<std::function<void()>  > task_queue_ ;
+        std::queue<std::function<void()>  > task_queue_ ;
+        std::mutex    mutex_      ;
         std::atomic<bool>   stop_flag_ {false};
         std::vector<std::thread> vec_thread_ ;
         std::vector<bool> vec_thread_terminated_ ;
@@ -164,16 +191,45 @@ class KoThreadPool
         int         num_of_threads_ {-1};
 
     private:
+
+        void PushQueue( std::function<void()> const & value) 
+        {
+            std::unique_lock<std::mutex> lock(mutex_);
+            task_queue_.push(value);
+        }
+
+        bool  PopQueue() 
+        {
+            std::unique_lock<std::mutex> lock(mutex_);
+            if (task_queue_.empty())
+            {
+                return false;
+            }
+
+            std::function<void()> func = task_queue_.front();
+            task_queue_.pop();
+
+            func();
+
+            return true;
+        }
+
+        bool IsQueueEmpty() 
+        {
+            std::unique_lock<std::mutex> lock(mutex_);
+            return task_queue_.empty();
+        }
+
         void WorkerThreadRoutine(int index)
         {
             while (true) 
             {
-                if(task_queue_.IsEmpty())
+                if(IsQueueEmpty())
                 {
                     cond_var_.WaitForSignal();
                 }
 
-                task_queue_.PopQueue() ;
+                PopQueue() ;
 
                 if(stop_flag_)
                 {
