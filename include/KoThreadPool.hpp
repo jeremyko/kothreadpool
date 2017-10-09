@@ -103,7 +103,14 @@ class KoThreadPool
 {
     public:
         KoThreadPool()  = default;
-        ~KoThreadPool() = default;
+
+        ~KoThreadPool()
+        {
+            if(!stop_flag_)
+            {
+                Terminate();
+            }
+        }
 
         bool InitThreadPool(int num_of_threads= 0) 
         {

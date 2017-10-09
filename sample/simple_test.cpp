@@ -27,7 +27,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 bool MyThreadWork(int val, std::string& str)
 {
-    std::this_thread::sleep_for(std::chrono::milliseconds(1)); 
+    //std::this_thread::sleep_for(std::chrono::milliseconds(1)); 
     std::cout << "user value=" << val << "/" << str << "\n";
     return true;
 }
@@ -42,7 +42,7 @@ class MyClass
         bool MyThreadWork(int context_val)
         {
             context_val_ = context_val ;
-            std::this_thread::sleep_for(std::chrono::milliseconds(1)); 
+            //std::this_thread::sleep_for(std::chrono::milliseconds(1)); 
             std::cout <<"thread work : context =" << context_val_<< "\n";
 
             return true;
@@ -68,7 +68,7 @@ int main()
     int i = 0;
     while(true)
     {
-        if(i >= 100)
+        if(i >= 10)
         {
             break;
         }
@@ -87,7 +87,7 @@ int main()
 
         std::this_thread::sleep_for(std::chrono::milliseconds(3));
     }
-
+    
     tpool.Terminate();
 
     std::cout << "main exit...\n";
