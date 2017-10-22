@@ -68,9 +68,9 @@ class CondVar
                 cond_var_.wait(lock );
             }    
             if(!is_all_waiting_end_)
-			{
-				is_notified_=false;
-			}
+            {
+                is_notified_=false;
+            }
         }
 
         ENUM_COND_VAR_RSLT WaitForSignalTimeout(int timeout_secs)
@@ -86,9 +86,9 @@ class CondVar
             }
 
             if(!is_all_waiting_end_)
-			{
-				is_notified_=false;
-			}
+            {
+                is_notified_=false;
+            }
 
             if(std::cv_status::timeout ==ret)
             {
@@ -97,10 +97,10 @@ class CondVar
             return COND_CAR_RSLT_SIGNALED;
         }
 
-		void SetAllWaitingEnd()
-		{
+        void SetAllWaitingEnd()
+        {
             is_all_waiting_end_ = true;
-		}
+        }
 
     private:    
         std::mutex              cond_var_lock_ ;
@@ -166,7 +166,7 @@ class KoThreadPool
         void Terminate()
         {
             stop_flag_ = true;
-			cond_var_.SetAllWaitingEnd();
+            cond_var_.SetAllWaitingEnd();
             cond_var_.NotifyAll();
 
             for(size_t i = 0; i < vec_thread_.size(); i++)
