@@ -67,7 +67,10 @@ class CondVar
             {
                 cond_var_.wait(lock );
             }    
-            is_notified_=false; 
+            if(!is_all_waiting_end_)
+			{
+				is_notified_=false;
+			}
         }
 
         ENUM_COND_VAR_RSLT WaitForSignalTimeout(int timeout_secs)
@@ -82,7 +85,11 @@ class CondVar
                 ret=cond_var_.wait_for(lock, duration_sec);
             }
 
-            is_notified_=false;
+            if(!is_all_waiting_end_)
+			{
+				is_notified_=false;
+			}
+
             if(std::cv_status::timeout ==ret)
             {
                 return COND_CAR_RSLT_TIMEOUT;
@@ -90,11 +97,16 @@ class CondVar
             return COND_CAR_RSLT_SIGNALED;
         }
 
+		void SetAllWaitingEnd()
+		{
+            is_all_waiting_end_ = true;
+		}
 
     private:    
         std::mutex              cond_var_lock_ ;
         std::condition_variable cond_var_ ;
         bool is_notified_ {false};
+        bool is_all_waiting_end_ {false};
 
 };
 
@@ -154,28 +166,8 @@ class KoThreadPool
         void Terminate()
         {
             stop_flag_ = true;
+			cond_var_.SetAllWaitingEnd();
             cond_var_.NotifyAll();
-
-            int terminated_count = 0 ;
-            while( true ) 
-            {
-                bool is_terminated = vec_thread_terminated_[terminated_count] ;
-
-                if( !is_terminated )
-                {
-                    cond_var_.NotifyAll();
-                    std::this_thread::sleep_for(std::chrono::milliseconds(5)); 
-                    continue;
-                }
-                else
-                {
-                    terminated_count ++;
-                    if(terminated_count == num_of_threads_)
-                    {
-                        break;
-                    }
-                }
-            }
 
             for(size_t i = 0; i < vec_thread_.size(); i++)
             {
@@ -236,12 +228,12 @@ class KoThreadPool
                     cond_var_.WaitForSignal();
                 }
 
-                PopQueue() ;
-
                 if(stop_flag_)
                 {
                     break;
                 }
+
+                PopQueue() ;
             } 
 
             vec_thread_terminated_[index] = true; 
