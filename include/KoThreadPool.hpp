@@ -199,14 +199,17 @@ class KoThreadPool
 
         bool  PopQueue() 
         {
-            std::unique_lock<std::mutex> lock(mutex_);
-            if (task_queue_.empty())
+            std::function<void()> func ;
             {
-                return false;
-            }
+                std::unique_lock<std::mutex> lock(mutex_);
+                if (task_queue_.empty())
+                {
+                    return false;
+                }
 
-            std::function<void()> func = task_queue_.front();
-            task_queue_.pop();
+                func = task_queue_.front();
+                task_queue_.pop();
+            }
 
             func();
 
