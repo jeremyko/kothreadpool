@@ -85,8 +85,8 @@ int main()
         i++;
     }
 
-
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    //wait all work done...
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
     std::cout << "gSum1 =" << gSum1 << "\n";
     std::cout << "gSum2 =" << gSum2 << "\n";
     

@@ -146,12 +146,10 @@ class KoThreadPool
                 num_of_threads_  = num_of_threads ;
             }
 
-            vec_thread_terminated_.reserve( num_of_threads_ );
 
             for(int i=0; i < num_of_threads_ ; i++)
             {
                 vec_thread_.push_back( std::thread (&KoThreadPool::WorkerThreadRoutine, this, i) ) ;
-                vec_thread_terminated_.push_back(false);
             }
 
             return true;
@@ -185,7 +183,6 @@ class KoThreadPool
         std::mutex    mutex_      ;
         std::atomic<bool>   stop_flag_ {false};
         std::vector<std::thread> vec_thread_ ;
-        std::vector<bool> vec_thread_terminated_ ;
         CondVar     cond_var_ ;
         int         num_of_threads_ {-1};
 
@@ -238,8 +235,6 @@ class KoThreadPool
 
                 PopQueue() ;
             } 
-
-            vec_thread_terminated_[index] = true; 
         }
         
         KoThreadPool(const KoThreadPool &) = delete;
