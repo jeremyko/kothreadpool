@@ -35,8 +35,8 @@
 
 typedef enum __ENUM_COND_VAR_RSLT__
 {
-    COND_CAR_RSLT_TIMEOUT = 0,
-    COND_CAR_RSLT_SIGNALED
+    COND_VAR_RSLT_TIMEOUT = 0,
+    COND_VAR_RSLT_SIGNALED
 } ENUM_COND_VAR_RSLT ;
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -92,9 +92,9 @@ class CondVar
 
             if(std::cv_status::timeout ==ret)
             {
-                return COND_CAR_RSLT_TIMEOUT;
+                return COND_VAR_RSLT_TIMEOUT;
             }
-            return COND_CAR_RSLT_SIGNALED;
+            return COND_VAR_RSLT_SIGNALED;
         }
 
         void SetAllWaitingEnd()
