@@ -161,10 +161,16 @@ class KoThreadPool
             cond_var_.NotifyOne();
         }
 
-        void Terminate()
+        void Terminate(bool terminate_immediately=false)
         {
             stop_flag_ = true;
-            cond_var_.SetAllWaitingEnd();
+            is_terminate_immediately_ = terminate_immediately;
+
+            if(is_terminate_immediately_)
+            {
+                cond_var_.SetAllWaitingEnd(); //terminate immediately
+            }
+
             cond_var_.NotifyAll();
 
             for(size_t i = 0; i < vec_thread_.size(); i++)
@@ -182,6 +188,7 @@ class KoThreadPool
         std::queue<std::function<void()>  > task_queue_ ;
         std::mutex    mutex_      ;
         std::atomic<bool>   stop_flag_ {false};
+        std::atomic<bool>   is_terminate_immediately_ {false};
         std::vector<std::thread> vec_thread_ ;
         CondVar     cond_var_ ;
         int         num_of_threads_ {-1};
@@ -225,12 +232,18 @@ class KoThreadPool
             {
                 if(IsQueueEmpty())
                 {
+                    if(stop_flag_)
+                    {
+                        //graceful terminate
+                        return; 
+                    }
                     cond_var_.WaitForSignal();
                 }
 
-                if(stop_flag_)
+                if(is_terminate_immediately_ && stop_flag_)
                 {
-                    break;
+                    //force terminate
+                    return;
                 }
 
                 PopQueue() ;

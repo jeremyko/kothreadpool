@@ -32,6 +32,7 @@ std::atomic<int> gSum2;
 bool MyThreadWork()
 {
     gSum1++;
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
     return true;
 }
 
@@ -45,6 +46,7 @@ class MyClass
         bool MyThreadWork()
         {
             gSum2++;
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));
 
             return true;
         }
@@ -70,7 +72,7 @@ int main()
     int i = 0;
     while(true)
     {
-        if(i >= 10000)
+        if(i >= 1000)
         {
             break;
         }
@@ -85,12 +87,13 @@ int main()
         i++;
     }
 
-    //wait all work done...
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    tpool.Terminate(); //graceful terminate : wait until all work done
+
+    //tpool.Terminate(true); //true -->> terminate immediately
+
+    std::cout << "result "  << "\n";
     std::cout << "gSum1 =" << gSum1 << "\n";
     std::cout << "gSum2 =" << gSum2 << "\n";
-    
-    tpool.Terminate();
 
     return 0;
 }
