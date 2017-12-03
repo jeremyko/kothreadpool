@@ -240,7 +240,7 @@ class KoThreadPool
                     cond_var_.WaitForSignal();
                 }
 
-                if(is_terminate_immediately_ && stop_flag_)
+                if(is_terminate_immediately_ )
                 {
                     //force terminate
                     return;
