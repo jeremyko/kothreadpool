@@ -235,6 +235,7 @@ class KoThreadPool
                     if(stop_flag_)
                     {
                         //graceful terminate
+                        cond_var_.NotifyAll();
                         return; 
                     }
                     cond_var_.WaitForSignal();
