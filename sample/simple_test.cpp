@@ -22,13 +22,17 @@
 
 #include <iostream>
 #include <string>
+#include <atomic>
 #include "KoThreadPool.hpp"
 
+std::atomic<int> gSum1;
+std::atomic<int> gSum2;
+
 ///////////////////////////////////////////////////////////////////////////////
-bool MyThreadWork(int val, std::string& str)
+bool MyThreadWork()
 {
-    std::this_thread::sleep_for(std::chrono::milliseconds(1)); 
-    std::cout << "user value=" << val << "/" << str << "\n";
+    gSum1++;
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
     return true;
 }
 
@@ -39,17 +43,14 @@ class MyClass
         MyClass()  {} ;
         ~MyClass() {} ;
 
-        bool MyThreadWork(int context_val)
+        bool MyThreadWork()
         {
-            context_val_ = context_val ;
-            std::this_thread::sleep_for(std::chrono::milliseconds(1)); 
-            std::cout <<"thread work : context =" << context_val_<< "\n";
+            gSum2++;
+            std::this_thread::sleep_for(std::chrono::milliseconds(2));
 
             return true;
         }
 
-    private:
-        int context_val_ ;
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -60,39 +61,40 @@ int main()
     if( ! tpool.InitThreadPool() ) 
     {
         std::cerr << "Error : Init" << "\n";
-        return -1;
+        exit(1);
     }
+
+    gSum1 = 0;
+    gSum2 = 0;
 
     MyClass myclass;
 
     int i = 0;
     while(true)
     {
-        if(i >= 100)
+        if(i >= 1000)
         {
             break;
         }
 
         //class member
-        std::function<void()> temp_func1 = std::bind( &MyClass::MyThreadWork, &myclass, i)  ;
+        std::function<void()> temp_func1 = std::bind( &MyClass::MyThreadWork, &myclass)  ;
         tpool.AssignTask(temp_func1 )  ;
 
         //free function
-        char temp_buffer[20];
-        snprintf(temp_buffer, sizeof(temp_buffer), "str %d ", i );
-        std::function<void()> temp_func2 = std::bind( &MyThreadWork, i, std::string( temp_buffer ) )  ;
+        std::function<void()> temp_func2 = std::bind( &MyThreadWork )  ;
         tpool.AssignTask(temp_func2 )  ;
-
         i++;
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(3));
     }
 
-    tpool.Terminate();
+    tpool.Terminate(); //graceful terminate : wait until all work done
 
-    std::cout << "main exit...\n";
+    //tpool.Terminate(true); //true -->> terminate immediately
+
+    std::cout << "result "  << "\n";
+    std::cout << "gSum1 =" << gSum1 << "\n";
+    std::cout << "gSum2 =" << gSum2 << "\n";
 
     return 0;
-
 }
 

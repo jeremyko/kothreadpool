@@ -35,8 +35,8 @@
 
 typedef enum __ENUM_COND_VAR_RSLT__
 {
-    COND_CAR_RSLT_TIMEOUT = 0,
-    COND_CAR_RSLT_SIGNALED
+    COND_VAR_RSLT_TIMEOUT = 0,
+    COND_VAR_RSLT_SIGNALED
 } ENUM_COND_VAR_RSLT ;
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -67,7 +67,10 @@ class CondVar
             {
                 cond_var_.wait(lock );
             }    
-            is_notified_=false; 
+            if(!is_all_waiting_end_)
+            {
+                is_notified_=false;
+            }
         }
 
         ENUM_COND_VAR_RSLT WaitForSignalTimeout(int timeout_secs)
@@ -82,19 +85,28 @@ class CondVar
                 ret=cond_var_.wait_for(lock, duration_sec);
             }
 
-            is_notified_=false;
+            if(!is_all_waiting_end_)
+            {
+                is_notified_=false;
+            }
+
             if(std::cv_status::timeout ==ret)
             {
-                return COND_CAR_RSLT_TIMEOUT;
+                return COND_VAR_RSLT_TIMEOUT;
             }
-            return COND_CAR_RSLT_SIGNALED;
+            return COND_VAR_RSLT_SIGNALED;
         }
 
+        void SetAllWaitingEnd()
+        {
+            is_all_waiting_end_ = true;
+        }
 
     private:    
         std::mutex              cond_var_lock_ ;
         std::condition_variable cond_var_ ;
         bool is_notified_ {false};
+        bool is_all_waiting_end_ {false};
 
 };
 
@@ -103,7 +115,14 @@ class KoThreadPool
 {
     public:
         KoThreadPool()  = default;
-        ~KoThreadPool() = default;
+
+        ~KoThreadPool()
+        {
+            if(!stop_flag_)
+            {
+                Terminate();
+            }
+        }
 
         bool InitThreadPool(int num_of_threads= 0) 
         {
@@ -127,12 +146,10 @@ class KoThreadPool
                 num_of_threads_  = num_of_threads ;
             }
 
-            vec_thread_terminated_.reserve( num_of_threads_ );
 
             for(int i=0; i < num_of_threads_ ; i++)
             {
                 vec_thread_.push_back( std::thread (&KoThreadPool::WorkerThreadRoutine, this, i) ) ;
-                vec_thread_terminated_.push_back(false);
             }
 
             return true;
@@ -144,31 +161,17 @@ class KoThreadPool
             cond_var_.NotifyOne();
         }
 
-        void Terminate()
+        void Terminate(bool terminate_immediately=false)
         {
             stop_flag_ = true;
-            cond_var_.NotifyAll();
+            is_terminate_immediately_ = terminate_immediately;
 
-            int terminated_count = 0 ;
-            while( true ) 
+            if(is_terminate_immediately_)
             {
-                bool is_terminated = vec_thread_terminated_[terminated_count] ;
-
-                if( !is_terminated )
-                {
-                    cond_var_.NotifyAll();
-                    std::this_thread::sleep_for(std::chrono::milliseconds(5)); 
-                    continue;
-                }
-                else
-                {
-                    terminated_count ++;
-                    if(terminated_count == num_of_threads_)
-                    {
-                        break;
-                    }
-                }
+                cond_var_.SetAllWaitingEnd(); //terminate immediately
             }
+
+            cond_var_.NotifyAll();
 
             for(size_t i = 0; i < vec_thread_.size(); i++)
             {
@@ -185,8 +188,8 @@ class KoThreadPool
         std::queue<std::function<void()>  > task_queue_ ;
         std::mutex    mutex_      ;
         std::atomic<bool>   stop_flag_ {false};
+        std::atomic<bool>   is_terminate_immediately_ {false};
         std::vector<std::thread> vec_thread_ ;
-        std::vector<bool> vec_thread_terminated_ ;
         CondVar     cond_var_ ;
         int         num_of_threads_ {-1};
 
@@ -200,14 +203,17 @@ class KoThreadPool
 
         bool  PopQueue() 
         {
-            std::unique_lock<std::mutex> lock(mutex_);
-            if (task_queue_.empty())
+            std::function<void()> func ;
             {
-                return false;
-            }
+                std::unique_lock<std::mutex> lock(mutex_);
+                if (task_queue_.empty())
+                {
+                    return false;
+                }
 
-            std::function<void()> func = task_queue_.front();
-            task_queue_.pop();
+                func = task_queue_.front();
+                task_queue_.pop();
+            }
 
             func();
 
@@ -226,18 +232,23 @@ class KoThreadPool
             {
                 if(IsQueueEmpty())
                 {
+                    if(stop_flag_)
+                    {
+                        //graceful terminate
+                        cond_var_.NotifyAll();
+                        return; 
+                    }
                     cond_var_.WaitForSignal();
                 }
 
-                PopQueue() ;
-
-                if(stop_flag_)
+                if(is_terminate_immediately_ )
                 {
-                    break;
+                    //force terminate
+                    return;
                 }
-            } 
 
-            vec_thread_terminated_[index] = true; 
+                PopQueue() ;
+            } 
         }
         
         KoThreadPool(const KoThreadPool &) = delete;
