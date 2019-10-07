@@ -42,15 +42,11 @@ class MyClass
     public:
         MyClass()  {} ;
         ~MyClass() {} ;
-
-        bool MyThreadWork()
-        {
+        bool MyThreadWork() {
             gSum2++;
             std::this_thread::sleep_for(std::chrono::milliseconds(2));
-
             return true;
         }
-
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -58,43 +54,31 @@ int main()
 {
     KoThreadPool tpool;
 
-    if( ! tpool.InitThreadPool() ) 
-    {
+    if( ! tpool.InitThreadPool() ) {
         std::cerr << "Error : Init" << "\n";
         exit(1);
     }
-
     gSum1 = 0;
     gSum2 = 0;
-
     MyClass myclass;
-
     int i = 0;
-    while(true)
-    {
-        if(i >= 1000)
-        {
+    while(true) {
+        if(i >= 1000) {
             break;
         }
-
         //class member
         std::function<void()> temp_func1 = std::bind( &MyClass::MyThreadWork, &myclass)  ;
         tpool.AssignTask(temp_func1 )  ;
-
         //free function
         std::function<void()> temp_func2 = std::bind( &MyThreadWork )  ;
         tpool.AssignTask(temp_func2 )  ;
         i++;
     }
-
     tpool.Terminate(); //graceful terminate : wait until all work done
-
     //tpool.Terminate(true); //true -->> terminate immediately
-
     std::cout << "result "  << "\n";
     std::cout << "gSum1 =" << gSum1 << "\n";
     std::cout << "gSum2 =" << gSum2 << "\n";
-
     return 0;
 }
 

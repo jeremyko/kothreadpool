@@ -46,59 +46,46 @@ class CondVar
         CondVar()  = default;
         ~CondVar() = default;
 
-        void NotifyOne()
-        {
+        void NotifyOne() {
             std::unique_lock<std::mutex> lock (cond_var_lock_);
             is_notified_ = true;
             cond_var_.notify_one();
         }
 
-        void NotifyAll()
-        {
+        void NotifyAll() {
             std::unique_lock<std::mutex> lock (cond_var_lock_);
             is_notified_ = true;
             cond_var_.notify_all();
         }
 
-        void WaitForSignal()
-        {
+        void WaitForSignal() {
             std::unique_lock<std::mutex> lock (cond_var_lock_);
-            while (!is_notified_) 
-            {
+            while (!is_notified_) {
                 cond_var_.wait(lock );
             }    
-            if(!is_all_waiting_end_)
-            {
+            if(!is_all_waiting_end_) {
                 is_notified_=false;
             }
         }
 
-        ENUM_COND_VAR_RSLT WaitForSignalTimeout(int timeout_secs)
-        {
+        ENUM_COND_VAR_RSLT WaitForSignalTimeout(int timeout_secs) {
             std::unique_lock<std::mutex> lock (cond_var_lock_);
             std::cv_status ret = std::cv_status::no_timeout;
-
             auto duration_sec = std::chrono::seconds(timeout_secs);
 
-            while(!is_notified_ && std::cv_status::timeout !=ret)
-            { 
+            while(!is_notified_ && std::cv_status::timeout !=ret) { 
                 ret=cond_var_.wait_for(lock, duration_sec);
             }
-
-            if(!is_all_waiting_end_)
-            {
+            if(!is_all_waiting_end_) {
                 is_notified_=false;
             }
-
-            if(std::cv_status::timeout ==ret)
-            {
+            if(std::cv_status::timeout ==ret) {
                 return COND_VAR_RSLT_TIMEOUT;
             }
             return COND_VAR_RSLT_SIGNALED;
         }
 
-        void SetAllWaitingEnd()
-        {
+        void SetAllWaitingEnd() {
             is_all_waiting_end_ = true;
         }
 
@@ -116,72 +103,53 @@ class KoThreadPool
     public:
         KoThreadPool()  = default;
 
-        ~KoThreadPool()
-        {
-            if(!stop_flag_)
-            {
+        ~KoThreadPool() {
+            if(!stop_flag_) {
                 Terminate();
             }
         }
 
-        bool InitThreadPool(int num_of_threads= 0) 
-        {
-            if(num_of_threads == 0 )
-            {
+        bool InitThreadPool(int num_of_threads= 0) {
+            if(num_of_threads == 0 ) {
                 int concurrency_hint = std::thread::hardware_concurrency();
-                std::cout <<"std::thread::hardware_concurrency() = " << concurrency_hint << "\n";
+                std::cout <<"std::thread::hardware_concurrency() = " 
+                          << concurrency_hint << "\n";
 
-                if(concurrency_hint > 1 )
-                {
+                if(concurrency_hint > 1 ) {
                     num_of_threads_  = concurrency_hint ;
-                }
-                else
-                {
-                    std::cerr << "std::thread::hardware_concurrency() failed! specify number of thread \n";
+                } else {
+                    std::cerr << "std::thread::hardware_concurrency() failed! "
+                              << "specify number of thread \n";
                     return false;
                 }
-            }
-            else
-            {
+            } else {
                 num_of_threads_  = num_of_threads ;
             }
-
-
-            for(int i=0; i < num_of_threads_ ; i++)
-            {
+            for(int i=0; i < num_of_threads_ ; i++) {
                 vec_thread_.push_back( std::thread (&KoThreadPool::WorkerThreadRoutine, this, i) ) ;
             }
-
             return true;
         }
 
-        void AssignTask( std::function<void()> & func ) 
-        {
+        void AssignTask( std::function<void()> & func ) {
             PushQueue(func);
             cond_var_.NotifyOne();
         }
 
-        void Terminate(bool terminate_immediately=false)
-        {
+        void Terminate(bool terminate_immediately=false) {
             stop_flag_ = true;
             is_terminate_immediately_ = terminate_immediately;
 
-            if(is_terminate_immediately_)
-            {
+            if(is_terminate_immediately_) {
                 cond_var_.SetAllWaitingEnd(); //terminate immediately
             }
-
             cond_var_.NotifyAll();
-
-            for(size_t i = 0; i < vec_thread_.size(); i++)
-            {
-                if (vec_thread_[i].joinable())
-                {
+            for(size_t i = 0; i < vec_thread_.size(); i++) {
+                if (vec_thread_[i].joinable()) {
                     vec_thread_[i].join();
                 }
             }
         }
-
 
     private:
 
@@ -195,58 +163,44 @@ class KoThreadPool
 
     private:
 
-        void PushQueue( std::function<void()> const & value) 
-        {
+        void PushQueue( std::function<void()> const & value) {
             std::unique_lock<std::mutex> lock(mutex_);
             task_queue_.push(value);
         }
 
-        bool  PopQueue() 
-        {
+        bool  PopQueue() {
             std::function<void()> func ;
             {
                 std::unique_lock<std::mutex> lock(mutex_);
-                if (task_queue_.empty())
-                {
+                if (task_queue_.empty()) {
                     return false;
                 }
-
                 func = task_queue_.front();
                 task_queue_.pop();
             }
-
             func();
-
             return true;
         }
 
-        bool IsQueueEmpty() 
-        {
+        bool IsQueueEmpty() {
             std::unique_lock<std::mutex> lock(mutex_);
             return task_queue_.empty();
         }
 
-        void WorkerThreadRoutine(int index)
-        {
-            while (true) 
-            {
-                if(IsQueueEmpty())
-                {
-                    if(stop_flag_)
-                    {
+        void WorkerThreadRoutine(int index) {
+            while (true) {
+                if(IsQueueEmpty()) {
+                    if(stop_flag_) {
                         //graceful terminate
                         cond_var_.NotifyAll();
                         return; 
                     }
                     cond_var_.WaitForSignal();
                 }
-
-                if(is_terminate_immediately_ )
-                {
+                if(is_terminate_immediately_ ) {
                     //force terminate
                     return;
                 }
-
                 PopQueue() ;
             } 
         }
