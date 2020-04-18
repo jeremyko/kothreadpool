@@ -63,29 +63,31 @@ int main()
     gSum2 = 0;
     gSum3 = 0;
     MyClass myclass;
-    int i = 0;
-    while(true) {
-        if(i >= 1000) {
-            break;
-        }
+
+    for(int i =0; i < 1000; i++ ){
+        tpool.SetWaitingCnt(3); //set total work count    
+
         //class member
         std::function<void()> temp_func1 = std::bind( &MyClass::MyThreadWork1, &myclass)  ;
         tpool.AssignTask(temp_func1 )  ;
-
         std::function<void()> temp_func2 = std::bind( &MyClass::MyThreadWork2, &myclass,1,1,1)  ;
         tpool.AssignTask(temp_func2 )  ;
-        
         //free function
         std::function<void()> temp_func3 = std::bind( &MyThreadWork )  ;
         tpool.AssignTask(temp_func3 )  ;
-        i++;
+
+        //wait all 3 works done.
+        tpool.WaitAllWorkDone(); // --> blocking call. 
+
+        std::cout << "all queued work done : " << gSum1 << "," << gSum2 << "," <<gSum3 << "\n";
+        // XXX do your other work here.... 
+        gSum1 = 0;
+        gSum2 = 0;
+        gSum3 = 0;
     }
+    //time to program exit, terminate thread pool.
     tpool.Terminate(); //graceful terminate : wait until all work done
     //tpool.Terminate(true); //true -->> terminate immediately
-
-    std::cout << "gSum1 =" << gSum1 << "\n";
-    std::cout << "gSum2 =" << gSum2 << "\n";
-    std::cout << "gSum3 =" << gSum3 << "\n";
     return 0;
 }
 
