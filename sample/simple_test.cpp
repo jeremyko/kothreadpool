@@ -27,13 +27,13 @@
 
 std::atomic<int> gSum1;
 std::atomic<int> gSum2;
+std::atomic<int> gSum3;
 
 ///////////////////////////////////////////////////////////////////////////////
-bool MyThreadWork()
+void MyThreadWork()
 {
     gSum1++;
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    return true;
+    //std::this_thread::sleep_for(std::chrono::milliseconds(1));
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -42,10 +42,11 @@ class MyClass
     public:
         MyClass()  {} ;
         ~MyClass() {} ;
-        bool MyThreadWork() {
+        void MyThreadWork1() {
             gSum2++;
-            std::this_thread::sleep_for(std::chrono::milliseconds(2));
-            return true;
+        }
+        void MyThreadWork2(int a, int b, int c) {
+            gSum3 += (a+b+c);
         }
 };
 
@@ -60,6 +61,7 @@ int main()
     }
     gSum1 = 0;
     gSum2 = 0;
+    gSum3 = 0;
     MyClass myclass;
     int i = 0;
     while(true) {
@@ -67,18 +69,23 @@ int main()
             break;
         }
         //class member
-        std::function<void()> temp_func1 = std::bind( &MyClass::MyThreadWork, &myclass)  ;
+        std::function<void()> temp_func1 = std::bind( &MyClass::MyThreadWork1, &myclass)  ;
         tpool.AssignTask(temp_func1 )  ;
-        //free function
-        std::function<void()> temp_func2 = std::bind( &MyThreadWork )  ;
+
+        std::function<void()> temp_func2 = std::bind( &MyClass::MyThreadWork2, &myclass,1,1,1)  ;
         tpool.AssignTask(temp_func2 )  ;
+        
+        //free function
+        std::function<void()> temp_func3 = std::bind( &MyThreadWork )  ;
+        tpool.AssignTask(temp_func3 )  ;
         i++;
     }
     tpool.Terminate(); //graceful terminate : wait until all work done
     //tpool.Terminate(true); //true -->> terminate immediately
-    std::cout << "result "  << "\n";
+
     std::cout << "gSum1 =" << gSum1 << "\n";
     std::cout << "gSum2 =" << gSum2 << "\n";
+    std::cout << "gSum3 =" << gSum3 << "\n";
     return 0;
 }
 
