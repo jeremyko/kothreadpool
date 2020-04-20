@@ -39,6 +39,8 @@ typedef enum __ENUM_COND_VAR_RSLT__
     COND_VAR_RSLT_SIGNALED
 } ENUM_COND_VAR_RSLT ;
 
+const size_t IMPOSSIBLE_HUGE_CNT = 9999999999 ;
+
 ///////////////////////////////////////////////////////////////////////////////
 class CondVar
 {
@@ -154,14 +156,21 @@ class KoThreadPool
             waiting_cnt_ = count ; 
         }
         void WaitAllWorkDone() {  //blocking call.
-            cond_var_wait_done_.WaitForSignal();
+            while(true){
+                if(done_cnt_ == waiting_cnt_ ){
+                    done_cnt_    = 0 ; 
+                    waiting_cnt_ = IMPOSSIBLE_HUGE_CNT ; 
+                    break;
+                }
+                cond_var_wait_done_.WaitForSignal();
+            }
         }
-
+    public:
+        std::atomic<size_t> waiting_cnt_ {IMPOSSIBLE_HUGE_CNT};
+        std::atomic<size_t> done_cnt_    {0};
     private:
         std::queue<std::function<void()>  > task_queue_ ;
         std::mutex    mutex_      ;
-        std::atomic<size_t> waiting_cnt_ {0};
-        std::atomic<size_t> done_cnt_    {0};
         std::atomic<bool>   stop_flag_ {false};
         std::atomic<bool>   is_terminate_immediately_ {false};
         std::vector<std::thread> vec_thread_ ;
@@ -188,11 +197,7 @@ class KoThreadPool
             }
             func();
             done_cnt_ ++;
-            if(done_cnt_ == waiting_cnt_ ){
-                done_cnt_    = 0 ; 
-                waiting_cnt_ = 0 ; 
-                cond_var_wait_done_.NotifyOne();
-            }
+            cond_var_wait_done_.NotifyOne();
             return true;
         }
 
