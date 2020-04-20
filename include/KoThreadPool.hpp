@@ -110,7 +110,7 @@ class KoThreadPool
                 Terminate();
             }
         }
-
+        // Find the optimal thread count through testing.    
         bool InitThreadPool(int num_of_threads= 0) {
             if(num_of_threads == 0 ) {
                 int concurrency_hint = std::thread::hardware_concurrency();
