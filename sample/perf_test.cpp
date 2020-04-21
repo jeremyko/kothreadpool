@@ -33,7 +33,8 @@ std::atomic<int> gSum3 ;
 void SumWork1()
 {
     gSum1++;
-    //std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    std::cout << "thread SumWork1 start \n";
+    std::this_thread::sleep_for(std::chrono::seconds(1));
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -43,9 +44,13 @@ class MyClass
         MyClass()  {} ;
         ~MyClass() {} ;
         void SumWork2() {
+            std::cout << "thread SumWork2 start \n";
+            std::this_thread::sleep_for(std::chrono::seconds(2));
             gSum2++;
         }
         void SumWork3(int a) {
+            std::cout << "thread SumWork3 start \n";
+            std::this_thread::sleep_for(std::chrono::seconds(3));
             gSum3 += a;
         }
 };
@@ -63,8 +68,9 @@ int main()
         std::cerr << "Error : Init" << "\n";
         exit(1);
     }
-    tpool.SetWaitingCnt(10*10000);
-    for(int i = 0; i < 10000; i++ ){
+    tpool.SetWaitingCnt(10);
+    //for(int i = 0; i < 10000; i++ ){
+    for(int i = 0; i < 1; i++ ){
         //to make gSum1 = 4
         std::function<void()> temp_func1 = std::bind( &SumWork1 ) ;
         tpool.AssignTask(temp_func1 )  ;

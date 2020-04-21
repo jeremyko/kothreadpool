@@ -50,23 +50,23 @@ class CondVar
 
         void NotifyOne() {
             std::unique_lock<std::mutex> lock (cond_var_lock_);
-            is_notified_ = true;
+            notified_cnt_++ ;
             cond_var_.notify_one();
         }
 
         void NotifyAll() {
             std::unique_lock<std::mutex> lock (cond_var_lock_);
-            is_notified_ = true;
+            notified_cnt_++ ;
             cond_var_.notify_all();
         }
 
         void WaitForSignal() {
             std::unique_lock<std::mutex> lock (cond_var_lock_);
-            while (!is_notified_) {
+            while (!notified_cnt_) {
                 cond_var_.wait(lock );
             }    
             if(!is_all_waiting_end_) {
-                is_notified_=false;
+                notified_cnt_-- ;
             }
         }
 
@@ -75,11 +75,11 @@ class CondVar
             std::cv_status ret = std::cv_status::no_timeout;
             auto duration_sec = std::chrono::seconds(timeout_secs);
 
-            while(!is_notified_ && std::cv_status::timeout !=ret) { 
+            while(!notified_cnt_ && std::cv_status::timeout !=ret) { 
                 ret=cond_var_.wait_for(lock, duration_sec);
             }
             if(!is_all_waiting_end_) {
-                is_notified_=false;
+                notified_cnt_-- ;
             }
             if(std::cv_status::timeout ==ret) {
                 return COND_VAR_RSLT_TIMEOUT;
@@ -94,7 +94,9 @@ class CondVar
     private:    
         std::mutex              cond_var_lock_ ;
         std::condition_variable cond_var_ ;
-        bool is_notified_ {false};
+        size_t notified_cnt_ {0}; 
+        //XXX use count. no boolean. 
+        //NotifyOne, NotifyAll can be called multiple times before WaitForSignal is called.
         bool is_all_waiting_end_ {false};
 
 };

@@ -64,7 +64,7 @@ int main()
         exit(1);
     }
 
-    for(int i = 0; i < 1000000; i++ ){
+    for(int i = 0; i < 100; i++ ){
         tpool.SetWaitingCnt(10); //set total work count    
         //to make gSum1 = 4
         std::function<void()> temp_func1 = std::bind( &SumWork1 ) ;
