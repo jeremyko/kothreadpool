@@ -21,7 +21,7 @@
  ****************************************************************************/
 
 #include <iostream>
-#include <string>
+//#include <string>
 #include <atomic>
 #include "KoThreadPool.hpp"
 
