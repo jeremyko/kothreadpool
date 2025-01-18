@@ -32,6 +32,7 @@ std::function<void()> temp_func3 = std::bind( &MyThreadWork )  ;
 tpool.AssignTask(temp_func3 )  ;
 
 //wait all 3 works done.
+//or you can call "Terminate(true)" here to exit program. 
 tpool.WaitAllWorkDone(); // --> blocking call. 
 
 
