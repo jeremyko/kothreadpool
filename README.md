@@ -11,8 +11,9 @@ see sample directory
 
 ```cpp
 
-MyClass myclass; //has member function : void MyThreadWork1(), void MyThreadWork2(int,int,int)
-void MyThreadWork() ; //free function
+MyClass myclass; // Assume that MyClass has the following member functions:
+                 // void MyThreadWork1(), void MyThreadWork2(int,int,int)
+void MyThreadWork() ; // Let's assume there is a free function 
 
 KoThreadPool tpool;
 
